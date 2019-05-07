@@ -3,7 +3,6 @@
 int check_sum(unsigned short *iphd,int len)
 {
     unsigned int ckSum = 0;
-    printf("len:%d\n",len);
     int my_len = 10;
     while(my_len>0){
         my_len-=1;

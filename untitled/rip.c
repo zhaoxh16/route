@@ -432,7 +432,6 @@ void route_SendForward(unsigned int uiCmd,TRtEntry *pstRtEntry)
 		else {
 			break;
 		}
-//		sleep(1);
 	}
 	if(tcpcount<6)
 	{
@@ -446,7 +445,6 @@ void route_SendForward(unsigned int uiCmd,TRtEntry *pstRtEntry)
 		{
 			printf("send ok!!!");
 		}
-//		sleep(5);
 		close(sendfd);
 	}
 }
@@ -478,16 +476,23 @@ void rippacket_Update()
             requestPackage->RipEntries[i].stAddr.s_addr = route_entry_now->stIpPrefix.s_addr;
             rip_entry_hton(&requestPackage->RipEntries[i]);
             i+=1;
+            if(i == 25){
+                request_size = 2*sizeof(char)+sizeof(short)+i*sizeof(TRipEntry);
+                rippacket_Multicast(local_addr);
+                i = 0;
+            }
         }
-        request_size = 2*sizeof(char)+sizeof(short)+i*sizeof(TRipEntry);
-        rippacket_Multicast(local_addr);
+        if(i!=0) {
+            request_size = 2 * sizeof(char) + sizeof(short) + i * sizeof(TRipEntry);
+            rippacket_Multicast(local_addr);
+        }
 	}
 	//注意水平分裂算法
 }
 
 void* thread(void *arg){
 	while(1){
-		sleep(5);
+		sleep(30);
 		rippacket_Update();
 	}
 }
