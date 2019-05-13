@@ -1,3 +1,5 @@
+#ifndef __FIND__
+#define __FIND__
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
