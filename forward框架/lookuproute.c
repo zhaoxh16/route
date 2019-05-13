@@ -20,7 +20,7 @@ int insert_route(unsigned long ip4prefix,unsigned int prefixlen,char *ifname,uns
     while(route_head->next != NULL){
         printf("%s\n", inet_ntoa(route_head->ip4prefix));
         if(route_head->nexthop != NULL){
-            printf("%s\n", inet_ntoa(route_head->nexthop->nexthopaddr)78y78y7g99t6gvio);
+            printf("%s\n", inet_ntoa(route_head->nexthop->nexthopaddr));
         }
         route_head = route_head->next;
     }
