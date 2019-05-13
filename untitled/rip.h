@@ -39,6 +39,7 @@ typedef struct RipEntry
 	struct in_addr stPrefixLen;
 	struct in_addr stNexthop;
 	unsigned int uiMetric;
+	bool garbageFlag;
 }TRipEntry;
 
 typedef struct  RipPacket

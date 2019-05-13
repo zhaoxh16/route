@@ -5,6 +5,7 @@ TRtEntry *g_pstRouteEntry = NULL;
 struct in_addr pcLocalAddr[10];//存储本地接口ip地址
 char *pcLocalName[10]={};//存储本地接口的接口名
 struct in_addr pcLocalMask[10];
+bool pcLocalTimeOut[10];
 
 int pcLocalInterfaceNum;
 TRipPkt* requestPackage = NULL;
@@ -286,6 +287,28 @@ void request_Handle(struct in_addr stSourceIp)
 	rippacket_Send(stSourceIp);
 }
 
+// add: garbage collection timer
+struct argForGarbage
+{
+	TRtEntry* route_entry_now;
+	in_addr receivePackage_RipEntriesI_stAddr;
+	unsigned int receivePackage_RipEntriesI_uiMetric;
+};
+
+void* threadForGarbage(void *arg){
+
+	struct argForGarbage input = (struct argForGarbage*)arg;
+	sleep(120);
+	if(input.route_entry_now.garbageFlag)
+	{
+		route_SendForward(25, route_entry_now);
+		route_entry_before->pstNext = route_entry_now->pstNext;
+		printf("Remove %d, addr: %s, metric: %d\n", i,
+                           inet_ntoa(input.receivePackage_RipEntriesI_stAddr), input.receivePackage_RipEntriesI_uiMetric);
+	}
+}
+
+
 /*****************************************************
 *Func Name:    response_Handle  
 *Description:  响应response报文
@@ -308,6 +331,14 @@ void response_Handle(struct in_addr stSourceIp)
 		printf("addr: %s ", inet_ntoa(receivePackage->RipEntries[i].stAddr));
 		printf("nexthop: %s\n", inet_ntoa(receivePackage->RipEntries[i].stNexthop));
 		receivePackage->RipEntries[i].uiMetric += 1;
+		// add here: for pcLocalTimeout
+		for(int j=0;j<pcLocalInterfaceNum;++j){
+			if((stSourceIp.s_addr & pcLocalMask[j].s_addr) ==
+					(pcLocalAddr[j].s_addr & pcLocalMask[j].s_addr)){
+				pcLocalTimeOut[j]=false;
+				break;
+			}
+        }
         if(receivePackage->RipEntries[i].stNexthop.s_addr == stSourceIp.s_addr){
         	printf("Drop out %d\n", i);
             continue;
@@ -319,10 +350,19 @@ void response_Handle(struct in_addr stSourceIp)
 				route_entry_now = route_entry_now->pstNext;
 				if(route_entry_now->stIpPrefix.s_addr == receivePackage->RipEntries[i].stAddr.s_addr) {
                     if(route_entry_now->stNexthop.s_addr != stSourceIp.s_addr) break;
-				    route_SendForward(25, route_entry_now);
-					route_entry_before->pstNext = route_entry_now->pstNext;
-                    printf("Remove %d, addr: %s, metric: %d\n", i,
-                           inet_ntoa(receivePackage->RipEntries[i].stAddr), receivePackage->RipEntries[i].uiMetric);
+					// add garbage collection timer
+					route_entry_now.garbageFlag=true;
+				    int ret = 0;
+					pthread_t tid;
+					struct argForGarbage itest;
+					itest.route_entry_now=route_entry_now;
+					itest.receivePackage_RipEntriesI_uiMetric=receivePackage->RipEntries[i].uiMetric;
+					input.receivePackage_RipEntriesI_stAddr=receivePackage->RipEntries[i].stAddr;
+					ret = pthread_create(&tid, NULL, thread, (void *)& itest);
+					if(ret!=0){
+						perror("pthread_create fail");
+						exit(0);
+					}
 					break;
 				}
 			}
@@ -337,6 +377,7 @@ void response_Handle(struct in_addr stSourceIp)
 					if(receivePackage->RipEntries[i].uiMetric < route_entry_now->uiMetric) {
 						route_entry_now->uiMetric = receivePackage->RipEntries[i].uiMetric;
 						route_entry_now->stNexthop.s_addr = stSourceIp.s_addr;
+						route_entry_now->garbageFlag=false;
                         for(int j=0;j<pcLocalInterfaceNum;++j){
                             if((stSourceIp.s_addr & pcLocalMask[j].s_addr) ==
                                     (pcLocalAddr[j].s_addr & pcLocalMask[j].s_addr)){
@@ -363,6 +404,7 @@ void response_Handle(struct in_addr stSourceIp)
 			    new_entry->uiMetric = receivePackage->RipEntries[i].uiMetric;
 			    new_entry->uiPrefixLen.s_addr = receivePackage->RipEntries[i].stPrefixLen.s_addr;
 			    new_entry->pstNext = g_pstRouteEntry->pstNext;
+				new_entry->garbageFlag=false;
 			    g_pstRouteEntry->pstNext = new_entry;
                 route_SendForward(24, new_entry);
 			}
@@ -489,9 +531,52 @@ void rippacket_Update()
 	}
 	//注意水平分裂算法
 }
+void dealTimeOutPort(char* localPort)
+{
+    TRtEntry *pointer=g_pstRouteEntry;
+    while(pointer!=NULL)
+    {
+        if((pointer->stNexthop.s_addr&pointer->stIPPrefixLen.s_addr)==(inet_addr(localPort)&pointer->stIPPrefixLen.s_addr))
+        {
+            // to be done ***
+            pointer->uiMetric=16;
+			pointer->garbageFlag=true;
+            int ret = 0;
+			pthread_t tid;
+			struct argForGarbage itest;
+			itest.route_entry_now=pointer;
+			itest.receivePackage_RipEntriesI_uiMetric=16;
+			input.receivePackage_RipEntriesI_stAddr=pointer->stIpPrefix;		
+			ret = pthread_create(&tid, NULL, thread, (void *)& itest);
+			if(ret!=0){
+				perror("pthread_create fail");
+				exit(0);
+			}
+        }
+        pointer=pointer->pstNext;
+    }
+    pthread_mutex_unlock(&(RouteLock));
+}
 
 void* thread(void *arg){
+	int forPCtimeOut=0;
 	while(1){
+		// every 180s
+		forPCtimeOut++;
+		if(forPCtimeOut==6)
+		{
+			for(int i=0;i<pcLocalInterfaceNum;i++)
+			{
+				if(forPCtimeOut==true;)
+				{
+					printf("[Timer] local Port %d is out of time!\n",i);
+                    printf("[Timer] Addr %s\n",pcLocalAddr[i]);
+                    dealTimeOutPort(pcLocalAddr[i]);
+					forPCtimeOut=false;
+				}
+			}
+			forPCtimeOut=0;
+		}
 		sleep(30);
 		rippacket_Update();
 	}
@@ -534,6 +619,7 @@ void routentry_Insert()
         pstRtEntry.uiMetric = 1;
         pstRtEntry.uiPrefixLen.s_addr = g_pstRouteEntry->uiPrefixLen.s_addr;
         pstRtEntry.pstNext = NULL;
+		pstRtEntry->garbageFlag=false;
         route_SendForward(24, &pstRtEntry);
         TRtEntry* thisEntry = g_pstRouteEntry;
         g_pstRouteEntry = (TRtEntry*)malloc(sizeof(TRtEntry));
@@ -564,6 +650,7 @@ void localinterf_GetInfo()
 			{
 				pcLocalAddr[i].s_addr = ((struct sockaddr_in *)pstIpAddrStruct->ifa_addr)->sin_addr.s_addr;
 				pcLocalName[i] = (char *)malloc(IF_NAMESIZE);
+				pcLocalTimeOut=false;
 				strcpy(pcLocalName[i],(const char*)pstIpAddrStruct->ifa_name);
 				pcLocalMask[i].s_addr = ((struct sockaddr_in *)pstIpAddrStruct->ifa_netmask)->sin_addr.s_addr;
 				i++;
