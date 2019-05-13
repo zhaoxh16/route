@@ -1,13 +1,8 @@
 #include "sendetherip.h"
 
 /* ip transmit */
-void ip_transmit(char* skbuf, char *ifName,unsigned char *nextmac, int len)
+void ip_transmit(char* skbuf, char *ifName,unsigned char *nextmac, int len, int sockfd)
 {
-    int sockfd;
-    if((sockfd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1){
-        perror("socket");
-    }
-
     struct ifreq if_mac;
     struct ifreq if_idx;
 
@@ -36,7 +31,5 @@ void ip_transmit(char* skbuf, char *ifName,unsigned char *nextmac, int len)
 
     if(sendto(sockfd, skbuf, len, 0, (struct sockaddr*)&socket_address, sizeof(struct sockaddr_ll))<0)
         printf("send failed\n");
-
-    close(sockfd);
     return;
 }

@@ -88,23 +88,26 @@ int main()
     routeNodeRoot->detail = NULL;
     routeNodeRoot->children[0] = routeNodeRoot->children[1] = NULL;
 
-	//调用添加函数insert_route往路由表里添加直连路由
-
 	//创建线程去接收路由信息
 	int pd;
 	pd = pthread_create(&tid,NULL,thr_fn,NULL);
     int sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    clock_t start;
-    clock_t end = clock();
+
+    struct arpmac *dstmac;
+    dstmac = (struct arpmac*)malloc(sizeof(struct arpmac));
+    memset(dstmac,0,sizeof(struct arpmac));
+    char mac_char[6];
+    dstmac->mac = mac_char;
+
+    int sockfd;
+    if((sockfd = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW)) == -1){
+        perror("socket");
+    }
 
 	while(1)
 	{
-	    start = clock();
-	    printf("%f, ", start-end);
 		//接收ip数据包模块
 		recvlen=recv(recvfd,skbuf,sizeof(skbuf),0);
-		end = clock();
-		printf("%f, ", end-start);
 		int flag = 0;
 		if(recvlen>0)
 		{
@@ -128,8 +131,6 @@ int main()
             nexthopinfo = (struct nextaddr *)malloc(sizeof(struct nextaddr));
             memset(nexthopinfo,0,sizeof(struct nextaddr));
 
-            start = clock();
-            printf("%f, ", start-end);
             //调用查找路由函数lookup_route，获取下一跳ip地址和出接口
             unsigned long* dst_ip = (unsigned long*)(iphead_array+8);
             struct in_addr dstaddr;
@@ -141,20 +142,11 @@ int main()
                 nexthopinfo->ipv4addr.s_addr = dstaddr.s_addr;
             }
 
-            //arp find
-            struct arpmac *dstmac;
-            dstmac = (struct arpmac*)malloc(sizeof(struct arpmac));
-            memset(dstmac,0,sizeof(struct arpmac));
-            char mac_char[6];
-            dstmac->mac = mac_char;
-
             //调用arpGet获取下一跳的mac地址
             if(arpGet(dstmac, nexthopinfo->ifname, &nexthopinfo->ipv4addr, sock_fd)) {
-                ip_transmit(skbuf, nexthopinfo->ifname, dstmac->mac, recvlen);
+                ip_transmit(skbuf, nexthopinfo->ifname, dstmac->mac, recvlen, sockfd);
             }
 		}
-		end = clock();
-		printf("%f\n", end-start);
 	}
 	close(sock_fd);
 	close(recvfd);	

@@ -26,7 +26,7 @@
 /* IP地址长度 */
 #define IP_ADDR_LEN 4
  
-void ip_transmit(char* skbuf, char *name,unsigned char *nextmac, int len);
+void ip_transmit(char* skbuf, char *name,unsigned char *nextmac, int len, int sockfd);
 
 #endif
 
