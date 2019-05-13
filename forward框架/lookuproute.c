@@ -9,7 +9,9 @@ int insert_route(unsigned long ip4prefix, unsigned int prefixlen, char *ifname, 
     unsigned long mask = (1 << 31);
     while(prefixlenNow > 0){
         prefixlenNow -= 1;
-        int bitNum = ip4prefixNow & mask;
+        int bitNum;
+        if(ip4prefixNow & mask) bitNum = 1;
+        else bitNum = 0;
         ip4prefixNow = ip4prefixNow << 1;
         if(routeNodeNow->children[bitNum] == NULL){
             routeNodeNow->children[bitNum] = (struct RouteNode*)malloc(sizeof(struct RouteNode));
@@ -21,6 +23,10 @@ int insert_route(unsigned long ip4prefix, unsigned int prefixlen, char *ifname, 
         }
     }
     // add detail to route
+    if(routeNodeNow->detail != NULL){
+        free(routeNodeNow->detail->nexthop);
+        free(routeNodeNow->detail);
+    }
     routeNodeNow->detail = (struct route*)malloc(sizeof(struct route));
     struct route* routeDetail = routeNodeNow->detail;
     routeDetail->prefixlen = prefixlen;
@@ -36,14 +42,17 @@ int lookup_route(struct in_addr dstaddr, struct nextaddr *nexthopinfo){
     struct route* rightRoute = NULL;
     unsigned long ip4prefixNow = ntohl(dstaddr.s_addr);
     unsigned long mask = 1 << 31;
-    int numPos = ip4prefixNow & mask;
+    int numPos;
+    if(ip4prefixNow & mask) numPos = 1;
+    else numPos = 0;
     while(routeNodeNow->children[numPos] != NULL){
         routeNodeNow = routeNodeNow->children[numPos];
         if(routeNodeNow->detail != NULL){
             rightRoute = routeNodeNow->detail;
         }
         ip4prefixNow = ip4prefixNow << 1;
-        numPos = ip4prefixNow & mask;
+        if(ip4prefixNow & mask) numPos = 1;
+        else numPos = 0;
     }
     if(rightRoute == NULL) return 0;
     nexthopinfo->ifname = rightRoute->nexthop->ifname;
