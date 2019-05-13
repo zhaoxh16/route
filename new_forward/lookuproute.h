@@ -14,7 +14,7 @@ struct RouteNode{
 
 struct route{
     struct in_addr ip4prefix;
-    unsgined int prefixlen;
+    unsigned int prefixlen;
     struct nexthop *nexthop;
 };
 
@@ -38,3 +38,4 @@ struct RouteNode* routeNodeRoot;
 int insert_route(unsigned long ip4prefix, unsigned int prefixlen, char *ifname, unsigned int ifindex, unsigned long nexthopaddr);
 int lookup_route(struct in_addr dstaddr,struct nextaddr *nexthopinfo);
 int delete_route(struct in_addr dstaddr,unsigned int prefixlen);
+#endif
