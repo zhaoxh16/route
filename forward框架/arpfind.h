@@ -15,6 +15,6 @@ struct arpmac
 };
 
 
-int arpGet(struct arpmac *dstmac,char *ifname, struct in_addr* ipStr);
+int arpGet(struct arpmac *dstmac,char *ifname, struct in_addr* ipStr, int sock_fd);
 
 #endif 

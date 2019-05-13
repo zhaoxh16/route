@@ -5,6 +5,7 @@
 #include "sendetherip.h"
 #include "recvroute.h"
 #include <pthread.h>
+#include <time.h>
 
 #define IP_HEADER_LEN sizeof(struct ip)
 #define ETHER_HEADER_LEN sizeof(struct ether_header)
@@ -92,11 +93,18 @@ int main()
 	//创建线程去接收路由信息
 	int pd;
 	pd = pthread_create(&tid,NULL,thr_fn,NULL);
+    int sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    clock_t start;
+    clock_t end = clock();
 
 	while(1)
 	{
+	    start = clock();
+	    printf("%f, ", start-end);
 		//接收ip数据包模块
 		recvlen=recv(recvfd,skbuf,sizeof(skbuf),0);
+		end = clock();
+		printf("%f, ", end-start);
 		int flag = 0;
 		if(recvlen>0)
 		{
@@ -104,9 +112,7 @@ int main()
 			ip_recvpkt = (struct ip *)(skbuf+ETHER_HEADER_LEN);
 
             int s;
-            memset(data,0,1480);
-            for(s=0;s<1480;s++)
-            {
+            for(s=0;s<1480;s++){
                 data[s]=skbuf[s+34];
             }
             // 校验计算模块
@@ -122,6 +128,8 @@ int main()
             nexthopinfo = (struct nextaddr *)malloc(sizeof(struct nextaddr));
             memset(nexthopinfo,0,sizeof(struct nextaddr));
 
+            start = clock();
+            printf("%f, ", start-end);
             //调用查找路由函数lookup_route，获取下一跳ip地址和出接口
             unsigned long* dst_ip = (unsigned long*)(iphead_array+8);
             struct in_addr dstaddr;
@@ -141,11 +149,14 @@ int main()
             dstmac->mac = mac_char;
 
             //调用arpGet获取下一跳的mac地址
-            if(arpGet(dstmac, nexthopinfo->ifname, &nexthopinfo->ipv4addr)) {
+            if(arpGet(dstmac, nexthopinfo->ifname, &nexthopinfo->ipv4addr, sock_fd)) {
                 ip_transmit(skbuf, nexthopinfo->ifname, dstmac->mac, recvlen);
             }
 		}
+		end = clock();
+		printf("%f\n", end-start);
 	}
+	close(sock_fd);
 	close(recvfd);	
 	return 0;
 }
