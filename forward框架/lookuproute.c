@@ -1,4 +1,5 @@
 #include "lookuproute.h"
+#include <stdio.h>
 
 
 int insert_route(unsigned long ip4prefix,unsigned int prefixlen,char *ifname,unsigned int ifindex,unsigned long  nexthopaddr)
@@ -13,6 +14,16 @@ int insert_route(unsigned long ip4prefix,unsigned int prefixlen,char *ifname,uns
     route_table = (struct route*)malloc(sizeof(struct route));
     memset(route_table, 0, sizeof(struct route));
     route_table->next = route_table_next;
+
+    // print
+    struct route * route_head = route_table;
+    while(route_head->next != NULL){
+        printf("%s\n", inet_ntoa(route_head->ip4prefix));
+        if(route_head->nexthop != NULL){
+            printf("%s\n", inet_ntoa(route_head->nexthop->nexthopaddr)78y78y7g99t6gvio);
+        }
+        route_head = route_head->next;
+    }
 }
 
 int lookup_route(struct in_addr dstaddr,struct nextaddr *nexthopinfo)
