@@ -83,9 +83,9 @@ int main()
 	}	
 	
 	//路由表初始化
-	route_table=(struct route*)malloc(sizeof(struct route));
-
-	memset(route_table,0,sizeof(struct route));
+	routeNodeRoot=(struct RouteNode*)malloc(sizeof(struct RouteNode));
+    routeNodeRoot->detail = NULL;
+    routeNodeRoot->children[0] = routeNodeRoot->children[1] = NULL;
 
 	//调用添加函数insert_route往路由表里添加直连路由
 
